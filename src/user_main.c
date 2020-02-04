@@ -8,7 +8,12 @@
 
 #define ADC_TASK_PRIO 0
 #define ADC_TASK_QUEUE_LEN 5
-#define ADC_READS 100
+#define ADC_READS 500
+
+#define PEDAL_MIN 130
+#define PEDAL_MAX 645
+#define POT_MIN 90
+#define POT_MAX 1023
 
 
 // -- GLOBAL VARS --
@@ -19,7 +24,6 @@ uint32 pwm_io[PWM_CHANNELS][3] = {
 	// MUX, FUNC, PIN
 	{PERIPHS_IO_MUX_MTDI_U, FUNC_GPIO12, 12},
 };
-uint8_t  pwm_direction = 1;
 uint16_t pwm_duty = 0;
 
 volatile uint16_t adc_pedal = 0;
@@ -99,6 +103,56 @@ void ICACHE_FLASH_ATTR  gpio16_output_set(uint8 value)
     );
 }
 
+void enableArc()
+{
+    GPIO_OUTPUT_SET(4,1);
+}
+
+void disableArc()
+{
+    GPIO_OUTPUT_SET(4,0);
+}
+
+void updatePwm()
+{
+    if (adc_pedal == 0) {
+        disableArc();
+        pwm_duty = adc_pot / (1000.0/PWM_PERIOD);
+    } else {
+        pwm_duty = (adc_pot * adc_pedal) / (1000000.0/PWM_PERIOD);
+        enableArc();
+    }
+    pwm_set_duty(pwm_duty, 0);
+    pwm_start();
+}
+
+// map value to a 0..1000 range triming both ends
+int prepareAdcValue(int value, int min, int max)
+{
+    value -= min;
+    value *= 1024.0/(max-min);
+    if (value < 0) {
+        value = 0;
+    }
+    if (value > 1000) {
+        value = 1000;
+    }
+    return value;
+}
+
+void setAdcPedal(int value)
+{
+    value = 1024 - value;
+    adc_pedal = prepareAdcValue(value, PEDAL_MIN, PEDAL_MAX);
+    updatePwm();
+}
+
+void setAdcPot(int value)
+{
+    adc_pot = prepareAdcValue(value, POT_MIN, POT_MAX);
+    updatePwm();
+}
+
 // State machine for adc reading and channel switching using
 // os_task and message queue. This wont stave cpu as each rutine is short,
 // queues another via task queue.
@@ -109,12 +163,12 @@ static void ICACHE_FLASH_ATTR adc_task(os_event_t *events)
             switch (events->par) {
                 case ADC_TASK_POT:
                     gpio_output_set(0, BIT13, BIT13, BIT14);
-                    adc_pedal = adc_value / ADC_READS;
+                    setAdcPedal(adc_value / ADC_READS);
 
                     break;
                 case ADC_TASK_PEDAL:
                     gpio_output_set(0, BIT14, BIT14, BIT13);
-                    adc_pot = adc_value / ADC_READS;
+                    setAdcPot(adc_value / ADC_READS);
 
                     break;
             }
@@ -142,27 +196,12 @@ static void ICACHE_FLASH_ATTR adc_task(os_event_t *events)
     }
 }
 
-// Basic method on a fixed timer with a PWM dummy change
+// Basic method for debuging
 void ICACHE_FLASH_ATTR print_status (void *arg)
 {
-	if (pwm_direction) {
-        pwm_duty += 100;
-        pwm_set_duty(pwm_duty, 0);
-        if (pwm_duty > PWM_PERIOD) {
-            pwm_direction = 0;
-        }
-    } else {
-        pwm_duty -= 100;
-        pwm_set_duty(pwm_duty, 0);
-        if (pwm_duty == 0) {
-            pwm_direction = 1;
-        }
-    }
-    pwm_start();
+    os_printf("POT: %d  PEDAL: %d  PWM: %d  ARC: %d\n", adc_pot, adc_pedal, pwm_duty,GPIO_INPUT_GET(4));
 
-    os_printf("POT: %d  PEDAL: %d\n", adc_pot, adc_pedal);
-
-    if (adc_pedal >= 950) {
+    if (adc_pedal >= 1000) {
         gpio16_output_set(1);
     } else {
         gpio16_output_set(0);
