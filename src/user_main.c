@@ -122,7 +122,7 @@ void updatePwm()
         pwm_duty = (adc_pot * adc_pedal) / (1000000.0/PWM_PERIOD);
         enableArc();
     }
-    pwm_set_duty(pwm_duty, 0);
+    pwm_set_duty(PWM_PERIOD-pwm_duty, 0);
     pwm_start();
 }
 
