@@ -5,7 +5,7 @@
 
 
 #define PWM_CHANNELS 1
-#define PWM_PERIOD 5000       //5000 ticks * 200ns ~= 1kHz
+#define PWM_PERIOD 1000       //1000 ticks * 200ns ~= 5kHz
 
 #define ADC_TASK_PRIO 0
 #define ADC_TASK_QUEUE_LEN 5
