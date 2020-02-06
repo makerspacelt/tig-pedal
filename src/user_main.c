@@ -1,6 +1,7 @@
 #include "osapi.h"
 #include "user_interface.h"
 #include "pwm.h"
+#include <math.h>
 
 
 #define PWM_CHANNELS 1
@@ -144,6 +145,7 @@ void setAdcPedal(int value)
 {
     value = 1024 - value;
     adc_pedal = prepareAdcValue(value, PEDAL_MIN, PEDAL_MAX);
+    adc_pedal = pow(adc_pedal, 0.6)*15.84894;
     updatePwm();
 }
 
