@@ -11,7 +11,7 @@
 #define ADC_TASK_QUEUE_LEN 5
 #define ADC_READS 500
 
-#define PEDAL_MIN 130
+#define PEDAL_MIN 150
 #define PEDAL_MAX 645
 #define POT_MIN 90
 #define POT_MAX 1023
